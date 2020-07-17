@@ -17,7 +17,11 @@ def get_group_list():
     with open('group_list.txt', 'r') as file:
         for item in file:
             group_id = re.findall(r"\d+", item)
-            group_list.append(group_id[0])
+            #  проверка на дубликаты в группе
+            if group_id[0] not in group_list:
+                group_list.append(group_id[0])
+            else:
+                continue
 
     return group_list
 
@@ -61,7 +65,10 @@ def get_posts(group):
 
 
 def get_post_text(posts, group_id, group_name):
-    os.mkdir(BASE_DIR + '/out/' + group_name + '-' + group_id)
+    try:
+        os.mkdir(BASE_DIR + '/out/' + group_name + '-' + group_id)
+    except:
+        print(f'Директория {group_name} не может быть создана')
     with open('out/' + group_name + '-' + group_id + '/posts.txt', 'w') as file:
         for post in posts:
             try:
@@ -125,7 +132,6 @@ def get_comments(posts, group_id, group_name):
 
 
 def main():
-    time.sleep(50400)
     GROUP_LIST.extend(get_group_list())
 
     for group in GROUP_LIST:
@@ -139,6 +145,9 @@ def main():
 
 
 if __name__ == '__main__':
+    sleep = 43200
+    print(f'Проверка начнётся через {sleep} секунд')
+    time.sleep(sleep)
     start_time = time.time()
     main()
     print("--- %s seconds ---" % (time.time() - start_time))
