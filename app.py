@@ -8,7 +8,7 @@ BASE_DIR = os.path.dirname(__file__)
 VERSION = '5.110'
 GROUP_LIST = []
 BAD_SYMBOL = ['/', '|']
-POST_COUNT = 20
+POST_COUNT = 70
 
 with open("token.txt") as f:
     ACCESS_TOKEN = f.read().strip()
@@ -28,13 +28,13 @@ def get_group_list():
     return group_list
 
 
-def get_group_name(group):
+def get_group_name(group_id):
     try:
         response = requests.get('https://api.vk.com/method/groups.getById',
                                 params={
                                     'access_token': ACCESS_TOKEN,
                                     'v': VERSION,
-                                    'group_id': group,
+                                    'group_id': group_id,
                                 })
 
         name = response.json()['response'][0]['name']
@@ -42,37 +42,47 @@ def get_group_name(group):
             if item in name:
                 name = name.replace(item, '-')
     except:
-        name = 'group {} error'.format(group)
+        name = 'group {} error'.format(group_id)
 
     return name
 
 
-def get_posts(group):
+def get_all_posts(group_id):
     posts = []
+    finally_list = []
     try:
         response = requests.get('https://api.vk.com/method/wall.get',
                                 params={
                                     'access_token': ACCESS_TOKEN,
                                     'v': VERSION,
-                                    'owner_id': '-' + group,
+                                    'owner_id': '-' + group_id,
                                     'count': POST_COUNT,
                                 })
 
         data = response.json()['response']['items']
         posts.extend(data)
-    except:
-        posts = 'No DATA'
+        for post in posts:
+            date = datetime.datetime.fromtimestamp(post['date'])
+            # получение постов за предыдущие сутки
+            today = datetime.datetime.now().day
+            if today - 1 == int(date.strftime('%d')):
+                finally_list.append(post)
 
-    return posts
+
+    except:
+        finally_list = 'No DATA'
+
+    return finally_list
 
 
 def get_post_data(post, group_id, file):
     try:
         url = 'https://vk.com/wall-' + group_id + '_' + str(post['id'])
+        date = datetime.datetime.fromtimestamp(post['date'])
+
         file.write(url + '\n')
-        timestamp = post['date']
-        date = datetime.datetime.fromtimestamp(timestamp)
         file.write(date.strftime('%d-%m-%Y %H:%M') + '\n')
+
         if post['text'] == '':
             post['text'] = 'В этом посте изображение'
             file.write(post['text'] + '\n\n')
@@ -128,19 +138,24 @@ def get_comments(post, group_id, group_name, file):
 
 
 def main():
-    GROUP_LIST.extend(get_group_list())
+    GROUP_LIST.extend(get_group_list())  # получаем список групп для парсинга
     count = 0
     for group_id in GROUP_LIST:
         count += 1
         group_name = get_group_name(group_id)  # Получение названия группы
-        dir_out = '{}/out/{}-{}'.format(BASE_DIR, group_name, group_id)
+        dir_out = '{}/out/{}-{}'.format(BASE_DIR,
+                                        group_name,
+                                        group_id)  # путь до директории где будет лежать результат парсинга
+
+        print(f'{count} - Начинаю сбор информации в группе {group_name}-club{group_id}')
+
+        posts = get_all_posts(group_id)  # Получение списка постов за предыдущие сутки
+
         try:
             os.mkdir(dir_out)
         except:
             print(f'Директория {group_name} не может быть создана')
 
-        print(f'{count} - Начинаю сбор информации в группе {group_name}-club{group_id}')
-        posts = get_posts(group_id)  # Получение списка постов
         for post in posts:
             with open(dir_out + '/wall-{}_{}.txt'.format(group_id, post['id']), 'w') as file:
                 get_post_data(post, group_id, file)
@@ -149,9 +164,6 @@ def main():
 
 
 if __name__ == '__main__':
-    #sleep = 43200
-    #print(f'Сбор начнётся через {sleep} секунд')
-    #time.sleep(sleep)
     start_time = time.time()
     main()
     print("--- %s seconds ---" % (time.time() - start_time))
