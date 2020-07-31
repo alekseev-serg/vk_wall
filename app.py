@@ -4,19 +4,19 @@ import time
 import os
 import re
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VERSION = '5.110'
 GROUP_LIST = []
 BAD_SYMBOL = ['/', '|']
 POST_COUNT = 70
 
-with open("token.txt") as f:
+with open("base/token.txt") as f:
     ACCESS_TOKEN = f.read().strip()
 
 
 def get_group_list():
     group_list = []
-    with open('group_list.txt', 'r') as file:
+    with open('base/group_list.txt', 'r') as file:
         for item in file:
             group_id = re.findall(r"\d+", item)
             #  проверка на дубликаты в группе
