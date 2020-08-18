@@ -206,4 +206,4 @@ if __name__ == '__main__':
         main()
         START_TIME = set_current_time()
         print(START_TIME)
-        time.sleep(16200)
+        time.sleep(86400)
