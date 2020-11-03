@@ -18,13 +18,13 @@ VERSION = '5.110'
 BAD_SYMBOL = ['/', '|']
 POST_COUNT = 70
 ACCESS_TOKEN = open_base_file(f'{BASE_DIR}/base/token.txt')
-START_TIME = int(open_base_file(f'{BASE_DIR}/base/timestamp.txt'))
+START_TIME = int(open_base_file(f'{BASE_DIR}/base/BillBoard/Bbtimestamp.txt'))
 USER = getpass.getuser()
 
 
 def set_current_time():
     current_time = round(datetime.datetime.now().timestamp())
-    with open('base/timestamp.txt', 'w') as file:
+    with open('base/BillBoard/Bbtimestamp.txt', 'w') as file:
         file.write(str(current_time))
 
     return current_time
@@ -44,14 +44,17 @@ def get_group_list():
     :return возвращает список уникальных ID групп ВК:
     """
     group_list = []
-    with open('base/group_list.txt', 'r') as file:
+    with open('base/BillBoard/group_list.txt', 'r') as file:
         for item in file:
-            group_id = re.findall(r"\d+", item)
-            #  проверка на дубликаты в группе
-            if group_id[0] not in group_list:
-                group_list.append(group_id[0])
-            else:
-                continue
+            try:
+                group_id = re.findall(r"\d+", item)
+                #  проверка на дубликаты в группе
+                if group_id[0] not in group_list:
+                    group_list.append(group_id[0])
+                else:
+                    continue
+            except:
+                pass
 
     return group_list
 
@@ -170,13 +173,13 @@ def get_comments(post, group_id, group_name, file):
 def main():
     DAY = datetime.datetime.now().strftime('%d-%m-%Y')
     TIME = datetime.datetime.now().strftime('%H-%M')
-    path_for_clear = '/home/{}/Common_Files/VK_WALL/{}/{}/'.format(USER, DAY, TIME)
+    path_for_clear = '/home/{}/Common_Files/BillBoard_VK/{}/{}/'.format(USER, DAY, TIME)
     count = 0
     for group_id in get_group_list():
         count += 1
         group_name = get_group_name(group_id)  # Получение названия группы
 
-        dir_out = '/home/{}/Common_Files/VK_WALL/{}/{}/{}-{}'.format(USER,
+        dir_out = '/home/{}/Common_Files/BillBoard_VK/{}/{}/{}-{}'.format(USER,
                                                              DAY,
                                                              TIME,
                                                              group_name,
