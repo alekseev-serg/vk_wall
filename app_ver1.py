@@ -140,7 +140,7 @@ def get_comments(post, group_id, group_name, file):
 
     data = response.json()['response']['items']
     comments.extend(data)  # Список всех комментариев
-    time.sleep(0.5)
+    time.sleep(3)
 
     for comment in comments:
         try:
@@ -206,4 +206,4 @@ if __name__ == '__main__':
         main()
         START_TIME = set_current_time()
         print(START_TIME)
-        time.sleep(86400)
+        time.sleep(43200)

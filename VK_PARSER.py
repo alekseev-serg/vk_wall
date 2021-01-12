@@ -1,3 +1,4 @@
+from pathlib import Path
 import datetime
 import requests
 import time
@@ -13,21 +14,33 @@ def open_base_file(path):
     return value
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = Path(__file__).parent
+OUTPUT_FOLDER = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
 VERSION = '5.110'
 BAD_SYMBOL = ['/', '|']
 POST_COUNT = 70
 ACCESS_TOKEN = open_base_file(f'{BASE_DIR}/base/token.txt')
-START_TIME = int(open_base_file(f'{BASE_DIR}/base/BillBoard/Bbtimestamp.txt'))
+START_TIME = int(open_base_file(f'{BASE_DIR}/base/timestamp.txt'))
 USER = getpass.getuser()
+DICTIONARY = ['един', 'школ', 'мороз', 'мая']
 
 
 def set_current_time():
     current_time = round(datetime.datetime.now().timestamp())
-    with open('base/BillBoard/Bbtimestamp.txt', 'w') as file:
+    with open('base/timestamp.txt', 'w') as file:
         file.write(str(current_time))
 
     return current_time
+
+
+def remove_empty_file(path):
+    dir_list = os.listdir(path)
+    for folder in dir_list:
+        for root, dirs, files in os.walk(path + folder):
+            for file in files:
+                path_way = os.path.join(root, file)
+                if os.path.getsize(path_way) == 0:
+                    os.remove(path_way)
 
 
 def remove_empty_folder(path):
@@ -44,17 +57,14 @@ def get_group_list():
     :return возвращает список уникальных ID групп ВК:
     """
     group_list = []
-    with open('base/BillBoard/group_list.txt', 'r') as file:
+    with open('base/group_list.txt', 'r') as file:
         for item in file:
-            try:
-                group_id = re.findall(r"\d+", item)
-                #  проверка на дубликаты в группе
-                if group_id[0] not in group_list:
-                    group_list.append(group_id[0])
-                else:
-                    continue
-            except:
-                pass
+            group_id = re.findall(r"\d+", item)
+            #  проверка на дубликаты в группе
+            if group_id[0] not in group_list:
+                group_list.append(group_id[0])
+            else:
+                continue
 
     return group_list
 
@@ -98,9 +108,8 @@ def get_all_posts(group_id):
         data = response.json()['response']['items']
         posts.extend(data)
         for post in posts:
-            if START_TIME < post['date'] < set_current_time():
+            if START_TIME < post['date'] < round(datetime.datetime.now().timestamp()):
                 finally_list.append(post)
-
 
     except:
         finally_list = 'No DATA'
@@ -110,26 +119,24 @@ def get_all_posts(group_id):
 
 def get_post_data(post, group_id, file):
     try:
-        url = 'https://vk.com/wall-' + group_id + '_' + str(post['id'])
-        date = datetime.datetime.fromtimestamp(post['date'])
-
-        file.write(url + '\n')
-        file.write(date.strftime('%d-%m-%Y %H:%M') + '\n')
-
         if post['text'] == '':
             post['text'] = 'В этом посте изображение'
-            file.write(post['text'] + '\n\n')
+            print(post['text'] + '\n\n')
         else:
-            file.write(post['text'] + '\n\n')
+            for item in DICTIONARY:
+                if item in post['text']:
+                    url = 'https://vk.com/wall-' + group_id + '_' + str(post['id'])
+                    date = datetime.datetime.fromtimestamp(post['date'])
+
+                    file.write(url + '\n')
+                    file.write(date.strftime('%d-%m-%Y %H:%M') + '\n')
+                    file.write(post['text'] + '\n\n')
     except:
-        file.write('в сообщении присутствует недопустимый символ либо другая ошибка \n\n')
+        print('в сообщении присутствует недопустимый символ либо другая ошибка \n')
 
 
-def get_comments(post, group_id, group_name, file):
-    url = 'https://vk.com/wall-' + str(group_id) + '_' + str(post['id']) + '\n\n'
-    file.write(url)
+def get_comments(post, group_id, file):
     comments = []
-
     response = requests.get('https://api.vk.com/method/wall.getComments',
                             params={
                                 'access_token': ACCESS_TOKEN,
@@ -143,12 +150,14 @@ def get_comments(post, group_id, group_name, file):
 
     data = response.json()['response']['items']
     comments.extend(data)  # Список всех комментариев
-    time.sleep(0.5)
+    time.sleep(3)
 
     for comment in comments:
         try:
-            file.write(
-                'https://vk.com/id' + str(comment['from_id']) + ' написал(а):\n' + comment['text'] + '\n\n')
+            for word in DICTIONARY:
+                if word in comment['text']:
+                    file.write(
+                        'https://vk.com/id' + str(comment['from_id']) + ' написал(а):\n' + comment['text'] + '\n\n')
 
             if comment['thread']:
                 response = requests.get('https://api.vk.com/method/wall.getComments',
@@ -162,28 +171,29 @@ def get_comments(post, group_id, group_name, file):
                                         })
                 data = response.json()['response']['items']
                 for item in data:
-                    file.write('https://vk.com/id' + str(comment['from_id']) + ' написал(а):\n'
-                               + item['text'] + '\n\n')
+                    for word in DICTIONARY:
+                        if word in item['text']:
+                            file.write('https://vk.com/id' + str(comment['from_id']) + ' написал(а):\n'
+                                       + item['text'] + '\n\n')
 
         except:
-            file.write('комментарий удалён\n\n')
-            print(f"Some error in comments in {group_name} - https://vk.com/wall-{group_id}_{post['id']}")
+            print('комментарий удалён\n')
 
 
 def main():
     DAY = datetime.datetime.now().strftime('%d-%m-%Y')
     TIME = datetime.datetime.now().strftime('%H-%M')
-    path_for_clear = '/home/{}/Common_Files/BillBoard_VK/{}/{}/'.format(USER, DAY, TIME)
+    path_for_clear = str(OUTPUT_FOLDER) + '/VK_RESULT\\{}\\{}\\'.format(str(DAY), str(TIME))
+    path_for_clear_files = str(OUTPUT_FOLDER) + '\\VK_RESULT\\{}\\'.format(str(DAY))
     count = 0
     for group_id in get_group_list():
         count += 1
         group_name = get_group_name(group_id)  # Получение названия группы
 
-        dir_out = '/home/{}/Common_Files/BillBoard_VK/{}/{}/{}-{}'.format(USER,
-                                                             DAY,
-                                                             TIME,
-                                                             group_name,
-                                                             group_id)  # путь до директории с результатом
+        dir_out = str(OUTPUT_FOLDER) + '\\VK_RESULT\\{}\\{}\\{}-{}'.format(DAY,
+                                                                           TIME,
+                                                                           group_name,
+                                                                           group_id)  # путь до директории с результатом
 
         print(f'{count} - Начинаю сбор информации в группе {group_name}-club{group_id}')
 
@@ -197,9 +207,9 @@ def main():
         for post in posts:
             with open(dir_out + '/wall-{}_{}.txt'.format(group_id, post['id']), 'w') as file:
                 get_post_data(post, group_id, file)
-                file.write('\nКомментарии к записи:\n\n')
-                get_comments(post, group_id, group_name, file)  # Получение всех комментариев к каждому посту
+                get_comments(post, group_id, file)  # Получение всех комментариев к каждому посту
 
+    remove_empty_file(path_for_clear_files)  # удаляет нулевые файлы
     remove_empty_folder(path_for_clear)  # удаляем пустые папки в результатах
 
 
@@ -209,4 +219,4 @@ if __name__ == '__main__':
         main()
         START_TIME = set_current_time()
         print(START_TIME)
-        time.sleep(86400)
+        time.sleep(43200)
